@@ -70,7 +70,7 @@ This project is an agentic AI system that helps with codebase understanding and 
 
 2. Install required dependencies:
    ```bash
-   npm install axios react-router-dom @mui/material @emotion/react @emotion/styled react-syntax-highlighter
+   npm install
    ```
 
 3. Create API service:
