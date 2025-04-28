@@ -1,0 +1,8 @@
+flask
+flask-cors
+python-dotenv
+google-generativeai
+llama-index
+llama-index-embeddings-gemini
+llama-index-llms-gemini
+GitPython
