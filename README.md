@@ -70,63 +70,7 @@ This project is an agentic AI system that helps with codebase understanding and 
 
 2. Install required dependencies:
    ```bash
-   npm install axios react-router-dom @mui/material @emotion/react @emotion/styled react-syntax-highlighter
-   ```
-
-3. Create API service:
-   Create a file `src/services/api.js` with the following content:
-
-   ```javascript
-   import axios from 'axios';
-
-   const API_URL = 'http://localhost:5000';
-
-   export const submitRequirement = async (repoPath, prompt) => {
-     try {
-       const response = await axios.post(`${API_URL}/chatv1`, {
-         repo_path: repoPath,
-         prompt: prompt
-       });
-       return response.data;
-     } catch (error) {
-       console.error('Error submitting requirement:', error);
-       throw error;
-     }
-   };
-
-   export const getPendingChanges = async () => {
-     try {
-       const response = await axios.get(`${API_URL}/pending_changes`);
-       return response.data.pending_changes;
-     } catch (error) {
-       console.error('Error getting pending changes:', error);
-       throw error;
-     }
-   };
-
-   export const getFileChanges = async (changeId) => {
-     try {
-       const response = await axios.post(`${API_URL}/get_file_changes`, {
-         change_id: changeId
-       });
-       return response.data;
-     } catch (error) {
-       console.error('Error getting file changes:', error);
-       throw error;
-     }
-   };
-
-   export const acceptChanges = async (changeId) => {
-     try {
-       const response = await axios.post(`${API_URL}/accept_changes`, {
-         change_id: changeId
-       });
-       return response.data;
-     } catch (error) {
-       console.error('Error accepting changes:', error);
-       throw error;
-     }
-   };
+   npm install
    ```
 
 4. Start the React development server:
