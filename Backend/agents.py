@@ -8,6 +8,7 @@ from llama_index.core import VectorStoreIndex
 from llama_index.core.node_parser import CodeSplitter
 from llama_index.llms.gemini import Gemini
 from llama_index.embeddings.gemini import GeminiEmbedding
+from code_agent import CodeChangeAgent
 from llama_index.core.agent import ReActAgent
 from llama_index.core.tools import BaseTool, FunctionTool
 from llama_index.core import SimpleDirectoryReader
@@ -320,6 +321,7 @@ class ChangeExecutor:
         self.repo_path = repo_path
         self.index = index
         self.query_engine = index.as_query_engine()
+        self.code_change_agent = CodeChangeAgent(repo_path, self.query_engine)
     
     def execute_plan(self, plan: Dict) -> Dict:
         """Execute a change plan.
@@ -334,44 +336,65 @@ class ChangeExecutor:
         results = {
             "modified_files": [],
             "created_files": [],
-            "errors": []
+            "errors": [],
+            "file_changes": {}
         }
         for file_path in plan.get("files_to_modify", []):
-            try:
-                full_path = os.path.join(self.repo_path, file_path)
-                if not os.path.exists(full_path):
-                    results["errors"].append(f"File not found: {file_path}")
-                    continue
-                
-                with open(full_path, 'r') as f:
-                    original_content = f.read()
-                new_content = self.mod_file_gen(file_path, original_content, plan)
-                with open(full_path, 'w') as f:
-                    f.write(new_content)
-                
-                results["modified_files"].append(file_path)
-                logger.info(f"Modified file: {file_path}")
-                
-            except Exception as e:
-                error_msg = f"Error modifying {file_path}: {str(e)}"
-                logger.error(error_msg)
-                results["errors"].append(error_msg)
-        for file_path in plan.get("files_to_create", []):
-            try:
-                full_path = os.path.join(self.repo_path, file_path)
-                os.makedirs(os.path.dirname(full_path), exist_ok=True)
-                new_content = self.new_file_gen(file_path, plan)
-                with open(full_path, 'w') as f:
-                    f.write(new_content)
-                
-                results["created_files"].append(file_path)
-                logger.info(f"Created file: {file_path}")
-                
-            except Exception as e:
-                error_msg = f"Error creating {file_path}: {str(e)}"
-                logger.error(error_msg)
-                results["errors"].append(error_msg)
+            full_path = os.path.join(self.repo_path, file_path)
+            if not os.path.exists(full_path):
+                results["errors"].append(f"File not found: {file_path}")
+                continue
+            
+            file_analysis = self.code_change_agent.analyze_file_structure(file_path)
+            
+            file_specific_steps = []
+            for step in plan.get("implementation_steps", []):
+                if file_path in step:
+                    file_specific_steps.append(step)
+            
+            file_change_description = "\n".join(file_specific_steps)
+            change_points = self.code_change_agent.identify_change_points(
+                file_analysis, 
+                file_change_description
+            )
+            changes = self.code_change_agent.generate_changes(
+                file_path,
+                change_points,
+                file_change_description
+            )
+            with open(full_path, 'w') as f:
+                f.write(changes["modified_content"])
+            
+            print(f"The Only Modification Changes Are: {changes}")
+            results["modified_files"].append(file_path)
+            results["file_changes"][file_path] = changes
+            logger.info(f"Modified file with precise changes: {file_path}")
         
+        for file_path in plan.get("files_to_create", []):
+            full_path = os.path.join(self.repo_path, file_path)
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            
+            similar_files = self.code_change_agent.find_similar_files(file_path)
+            
+            file_specific_steps = []
+            for step in plan.get("implementation_steps", []):
+                if file_path in step:
+                    file_specific_steps.append(step)
+            
+            file_creation_description = "\n".join(file_specific_steps)
+            
+            new_file = self.code_change_agent.create_new_file(
+                file_path,
+                file_creation_description,
+                similar_files
+            )
+            
+            with open(full_path, 'w') as f:
+                f.write(new_file["content"])
+            
+            results["created_files"].append(file_path)
+            logger.info(f"Created file: {file_path}")
+                
         return results
     
     def mod_file_gen(self, file_path: str, original_content: str, plan: Dict) -> str:
